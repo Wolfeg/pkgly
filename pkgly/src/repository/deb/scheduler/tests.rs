@@ -6,9 +6,9 @@ use nr_core::{
     database::{DatabaseConfig, entities::storage::NewDBStorage, migration::run_migrations},
     storage::StorageName,
 };
-use once_cell::sync::Lazy;
 use sha2::Digest;
 use sqlx::{Connection, PgPool, postgres::PgPoolOptions};
+use std::sync::LazyLock;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -17,7 +17,7 @@ use testcontainers::{Container, clients::Cli, images::generic::GenericImage};
 use tokio::{net::TcpListener, task::JoinHandle};
 use uuid::Uuid;
 
-static DB_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
+static DB_LOCK: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 struct TestDb {
     pool: PgPool,

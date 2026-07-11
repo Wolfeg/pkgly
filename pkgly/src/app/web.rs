@@ -4,6 +4,7 @@ use std::{
     fs::File,
     io::BufReader,
     net::SocketAddr,
+    num::NonZeroUsize,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -13,7 +14,6 @@ use axum::{Router, extract::Request};
 use futures_util::pin_mut;
 use hyper::body::Incoming;
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use num_cpus;
 use rustls::ServerConfig;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use tokio::{net::TcpListener, signal};
@@ -28,8 +28,16 @@ use crate::app::config::WebServer;
 use crate::config::{PkglyConfig, load_config};
 /// Decide how many Tokio worker threads to start.
 pub(crate) fn resolve_worker_threads(web_server: &WebServer) -> usize {
-    let configured = web_server.worker_threads.unwrap_or_else(num_cpus::get);
+    let configured = web_server
+        .worker_threads
+        .unwrap_or_else(default_worker_threads);
     if configured == 0 { 1 } else { configured }
+}
+
+fn default_worker_threads() -> usize {
+    std::thread::available_parallelism()
+        .map(NonZeroUsize::get)
+        .unwrap_or(1)
 }
 
 pub(crate) fn startup_build_info() -> BuildInfo {

@@ -12,11 +12,8 @@ name = "pkglyctl"
 path = "src/main.rs"
 
 [dependencies]
-anyhow.workspace = true
 bytes.workspace = true
-chrono.workspace = true
 clap.workspace = true
-futures-util.workspace = true
 inquire = "0.7"
 nr-api.workspace = true
 reqwest.workspace = true

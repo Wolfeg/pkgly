@@ -4,9 +4,11 @@ use super::{resolve_worker_threads, startup_build_info};
 use crate::app::config::WebServer;
 
 #[test]
-fn default_uses_num_cpus() {
+fn default_uses_available_parallelism() {
     let web_server = WebServer::default();
-    let expected = num_cpus::get();
+    let expected = std::thread::available_parallelism()
+        .map(std::num::NonZeroUsize::get)
+        .unwrap_or(1);
     assert_eq!(resolve_worker_threads(&web_server), expected);
 }
 

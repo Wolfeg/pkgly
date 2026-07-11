@@ -1,3 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub static DB_TEST_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
+pub static DB_TEST_LOCK: LazyLock<tokio::sync::Mutex<()>> =
+    LazyLock::new(|| tokio::sync::Mutex::new(()));

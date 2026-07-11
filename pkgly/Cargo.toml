@@ -13,6 +13,7 @@ pretty_assertions = "1.1"
 rsa = { version = "0.9" }
 criterion = "0.5"
 testcontainers = "0.14"
+opentelemetry_sdk = { workspace = true, features = ["testing", "experimental_metrics_custom_reader"] }
 [dependencies]
 # Web
 axum = { version = "0.8", features = ["macros", "tokio", "ws"] }
@@ -22,13 +23,13 @@ axum-extra = { version = "0.10", features = [
     "typed-header",
 ] }
 tower = { version = "0.5", features = ["limit", "timeout"] }
-tower-http = { version = "0.6", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "set-header"] }
 tower-service = "0.3.2"
 hyper.workspace = true
 hyper-util.workspace = true
 http.workspace = true
 mime.workspace = true
-mime_guess.workspace = true
+mime_guess = { workspace = true, optional = true }
 http-body = "1"
 
 http-body-util.workspace = true
@@ -76,7 +77,6 @@ bytes.workspace = true
 ahash.workspace = true
 dashmap.workspace = true
 parking_lot.workspace = true
-once_cell.workspace = true
 oauth2 = { version = "5", features = ["reqwest"] }
 flate2 = "1"
 cron = "0.15"
@@ -86,13 +86,11 @@ jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 casbin = { version = "2.15", default-features = false, features = ["runtime-tokio"] }
 # Caching
 moka = { version = "0.12", features = ["future"] }
-lru = "0.16"
 # Rust Internal
 strum.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
 derive_more.workspace = true
-num_cpus.workspace = true
 # Badge Stuff
 
 pin-project = "1"
@@ -103,7 +101,7 @@ semver = { version = "1", features = ["std", "serde"] }
 tempfile = "3"
 # Maven Stuff
 maven-rs = { git = "https://github.com/kshcherban/maven-rs.git" }
-zip = { version = "5" }
+zip = { version = "5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 current_semver = "0.1"
 nr-core.workspace = true
 nr-macros.workspace = true
@@ -131,7 +129,6 @@ opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 opentelemetry-otlp = { workspace = true }
 opentelemetry-appender-tracing = { workspace = true }
-opentelemetry-semantic-conventions = { workspace = true }
 lettre = { version = "0.11", features = [
     "builder",
     "tokio1",
@@ -143,14 +140,14 @@ inquire = "0.7"
 serde_path_to_error = "0.1"
 [features]
 default = ["utoipa-scalar"]
-frontend = []
+frontend = ["dep:mime_guess"]
 
 [lints]
 workspace = true
 
 
 [build-dependencies]
-zip = { version = "5" }
+zip = { version = "5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 walkdir = "2"
 anyhow = "1.0"

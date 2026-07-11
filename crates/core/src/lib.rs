@@ -4,6 +4,6 @@ pub mod database;
 pub mod logging;
 pub mod repository;
 pub mod storage;
-#[cfg(feature = "testing")]
+#[cfg(any(feature = "testing", test))]
 pub mod testing;
 pub mod utils;

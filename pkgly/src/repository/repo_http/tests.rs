@@ -20,12 +20,12 @@ use nr_core::{
         permissions::{HasPermissions, InitialUserPermissions, RepositoryActions},
     },
 };
-use once_cell::sync::Lazy;
 use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::sync::LazyLock;
 use testcontainers::{Container, clients::Cli, images::generic::GenericImage};
 use uuid::Uuid;
 
-static DB_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
+static DB_LOCK: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 struct TestDb {
     pool: PgPool,

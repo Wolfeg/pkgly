@@ -20,8 +20,6 @@ strum.workspace = true
 schemars.workspace = true
 
 utoipa.workspace = true
-once_cell.workspace = true
-regex.workspace = true
 rand.workspace = true
 http.workspace = true
 derive_more.workspace = true
@@ -31,26 +29,21 @@ nr-macros.workspace = true
 ahash.workspace = true
 mime.workspace = true
 pg-extended-sqlx-queries.workspace = true
-# Testing
-anyhow = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
+anyhow.workspace = true
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "json",
-], optional = true }
-tracing-appender = { version = "0.2", optional = true }
+] }
+# Testing
 clap.workspace = true
 [dev-dependencies]
 pretty_assertions = "1"
+tokio.workspace = true
 [features]
-default = ["migrations", "testing"]
+default = ["migrations"]
 migrations = []
 testing = [
     "migrations",
-    "anyhow",
-    "tokio",
-    "tracing-subscriber",
-    "tracing-appender",
 ]
 [lints]
 workspace = true

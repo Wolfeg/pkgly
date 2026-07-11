@@ -3,13 +3,13 @@ use super::*;
 
 use crate::repository::NewRepository;
 use nr_core::{database::entities::storage::NewDBStorage, storage::StorageName};
-use once_cell::sync::Lazy;
 use sqlx::Row;
 use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::sync::LazyLock;
 use testcontainers::{Container, clients::Cli, images::generic::GenericImage};
 use uuid::Uuid;
 
-static DB_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
+static DB_LOCK: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 struct TestDb {
     pool: PgPool,

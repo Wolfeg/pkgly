@@ -6,10 +6,9 @@
 //! ordered by most recently updated version and instrumented with
 //! simple OpenTelemetry metrics.
 
-use std::time::Instant;
+use std::{sync::LazyLock, time::Instant};
 
 use chrono::{DateTime, FixedOffset};
-use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
     metrics::{Histogram, Meter},
@@ -211,7 +210,7 @@ impl SearchMetrics {
     }
 }
 
-static SEARCH_METRICS: Lazy<SearchMetrics> = Lazy::new(SearchMetrics::new);
+static SEARCH_METRICS: LazyLock<SearchMetrics> = LazyLock::new(SearchMetrics::new);
 
 #[cfg(test)]
 mod tests;
