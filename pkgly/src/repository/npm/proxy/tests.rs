@@ -333,6 +333,80 @@ async fn serve_cached_response_rewrites_metadata_tarballs() {
 }
 
 #[tokio::test]
+async fn serve_cached_response_falls_back_to_legacy_metadata_cache() {
+    let repository_id = Uuid::new_v4();
+    let storage = test_storage().await;
+    let path = StoragePath::from("@scope/pkg");
+    let cache_path = metadata_cache_path_for_npm_proxy(&path);
+    let metadata = br#"{
+        "name": "@scope/pkg",
+        "versions": {
+            "1.0.0": { "dist": { "tarball": "https://registry.npmjs.org/@scope/pkg/-/pkg-1.0.0.tgz" } }
+        }
+    }"#;
+
+    storage
+        .save_file(
+            repository_id,
+            FileContent::Bytes(Bytes::from_static(metadata)),
+            &path,
+        )
+        .await
+        .expect("write legacy metadata");
+
+    let (parts, _) = Request::builder()
+        .uri("https://pkgly.test/repositories/abc/npm-proxy/@scope/pkg")
+        .header(http::header::HOST, "pkgly.test")
+        .body(())
+        .unwrap()
+        .into_parts();
+
+    let response =
+        super::serve_cached_response(&parts, &storage, repository_id, &path, &cache_path, true)
+            .await
+            .expect("cache lookup succeeds")
+            .expect("legacy cache response exists");
+
+    let RepoResponse::Other(response) = response else {
+        panic!("expected rewritten metadata response");
+    };
+    let body = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read rewritten body");
+    let rewritten: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(
+        rewritten["versions"]["1.0.0"]["dist"]["tarball"].as_str(),
+        Some("https://pkgly.test/repositories/abc/npm-proxy/@scope/pkg/-/pkg-1.0.0.tgz")
+    );
+}
+
+#[tokio::test]
+async fn cached_file_information_falls_back_to_legacy_metadata_cache() {
+    let repository_id = Uuid::new_v4();
+    let storage = test_storage().await;
+    let path = StoragePath::from("@scope/pkg");
+    let cache_path = metadata_cache_path_for_npm_proxy(&path);
+
+    storage
+        .save_file(
+            repository_id,
+            FileContent::Bytes(Bytes::from_static(b"legacy metadata")),
+            &path,
+        )
+        .await
+        .expect("write legacy metadata");
+
+    let metadata =
+        super::cached_file_information(&storage, repository_id, &cache_path, Some(&path))
+            .await
+            .expect("cache lookup succeeds")
+            .expect("legacy metadata exists");
+
+    assert_eq!(metadata.name(), "pkg");
+}
+
+#[tokio::test]
 async fn serve_cached_response_ignores_a_directory_at_cache_path() {
     let repository_id = Uuid::new_v4();
     let storage = test_storage().await;

@@ -26,7 +26,7 @@ use nr_core::{
     },
     storage::StoragePath,
 };
-use nr_storage::{DynStorage, FileContent, Storage, StorageFile};
+use nr_storage::{DynStorage, FileContent, FileType, Storage, StorageFile, StorageFileMeta};
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::Deserialize;
 use serde_json::Value;
@@ -103,12 +103,12 @@ async fn serve_cached_response(
     cache_path: &StoragePath,
     is_metadata: bool,
 ) -> Result<Option<RepoResponse>, NPMRegistryError> {
-    let Some(file) = storage.open_file(repository_id, cache_path).await? else {
+    let legacy_metadata_path = is_metadata.then_some(path);
+    let Some(file) =
+        open_cached_file(storage, repository_id, cache_path, legacy_metadata_path).await?
+    else {
         return Ok(None);
     };
-    if matches!(file, StorageFile::Directory { .. }) {
-        return Ok(None);
-    }
     if !is_metadata {
         return Ok(Some(file.into()));
     }
@@ -116,10 +116,60 @@ async fn serve_cached_response(
         return Ok(Some(response));
     }
 
+    Ok(
+        open_cached_file(storage, repository_id, cache_path, legacy_metadata_path)
+            .await?
+            .map(Into::into),
+    )
+}
+
+async fn open_cached_file(
+    storage: &DynStorage,
+    repository_id: Uuid,
+    cache_path: &StoragePath,
+    legacy_metadata_path: Option<&StoragePath>,
+) -> Result<Option<StorageFile>, NPMRegistryError> {
+    if let Some(file @ StorageFile::File { .. }) =
+        storage.open_file(repository_id, cache_path).await?
+    {
+        return Ok(Some(file));
+    }
+
+    let Some(legacy_metadata_path) = legacy_metadata_path else {
+        return Ok(None);
+    };
     Ok(storage
-        .open_file(repository_id, cache_path)
+        .open_file(repository_id, legacy_metadata_path)
         .await?
-        .map(Into::into))
+        .and_then(|file| match file {
+            file @ StorageFile::File { .. } => Some(file),
+            StorageFile::Directory { .. } => None,
+        }))
+}
+
+async fn cached_file_information(
+    storage: &DynStorage,
+    repository_id: Uuid,
+    cache_path: &StoragePath,
+    legacy_metadata_path: Option<&StoragePath>,
+) -> Result<Option<StorageFileMeta<FileType>>, NPMRegistryError> {
+    let metadata = storage
+        .get_file_information(repository_id, cache_path)
+        .await?;
+    if metadata
+        .as_ref()
+        .is_some_and(|metadata| matches!(metadata.file_type(), FileType::File(_)))
+    {
+        return Ok(metadata);
+    }
+
+    let Some(legacy_metadata_path) = legacy_metadata_path else {
+        return Ok(None);
+    };
+    let metadata = storage
+        .get_file_information(repository_id, legacy_metadata_path)
+        .await?;
+    Ok(metadata.filter(|metadata| matches!(metadata.file_type(), FileType::File(_))))
 }
 
 impl NpmProxyRegistry {
@@ -505,8 +555,10 @@ impl Repository for NpmProxyRegistry {
 
             let path = request.path;
 
-            let cache_path = cache_path_for_npm_proxy(&path)
-                .unwrap_or_else(|| metadata_cache_path_for_npm_proxy(&path));
+            let tarball_cache_path = cache_path_for_npm_proxy(&path);
+            let is_metadata = tarball_cache_path.is_none();
+            let cache_path =
+                tarball_cache_path.unwrap_or_else(|| metadata_cache_path_for_npm_proxy(&path));
 
             if path.is_directory() {
                 if let Some(response) = this
@@ -521,19 +573,21 @@ impl Repository for NpmProxyRegistry {
                 ));
             }
 
-            if let Some(meta) = this
-                .storage()
-                .get_file_information(this.id(), &cache_path)
-                .await?
+            let storage = this.storage();
+            if let Some(meta) = cached_file_information(
+                &storage,
+                this.id(),
+                &cache_path,
+                is_metadata.then_some(&path),
+            )
+            .await?
             {
                 return Ok(meta.into());
             }
 
             if this.download_and_cache(&path, query.as_deref()).await? {
-                if let Some(meta) = this
-                    .storage()
-                    .get_file_information(this.id(), &cache_path)
-                    .await?
+                if let Some(meta) =
+                    cached_file_information(&storage, this.id(), &cache_path, None).await?
                 {
                     return Ok(meta.into());
                 }
